@@ -31,6 +31,25 @@ module Delayed
     self.min_priority = nil
     self.max_priority = nil
 
+    # Tell Delayed::Job to process a job immediately.
+    # In example, to perform a job synchronously in tests, define the following
+    # in your test environment file:
+    #
+    #    Delayed::Job.synchrony = true
+    #
+    def self.synchrony=(val)
+      @@synchrony = val
+    end
+
+    def self.synchrony # :nodoc:
+      @@synchrony ||= false
+    end
+
+    # Should the method be performed synchronously or not
+    def self.synchronous?
+      synchrony == true
+    end
+
     # When a worker is exiting, make sure we don't have any locked jobs.
     def self.clear_locks!
       update_all("locked_by = null, locked_at = null", ["locked_by = ?", worker_name])
@@ -113,7 +132,11 @@ module Delayed
       priority = args.first || 0
       run_at   = args[1]
 
-      Job.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+      if synchronous?
+        object.perform
+      else
+        Job.create(:payload_object => object, :priority => priority.to_i, :run_at => run_at)
+      end
     end
 
     # Find a few candidate jobs to run (in case some immediately get locked by others).

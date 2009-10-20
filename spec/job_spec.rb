@@ -342,4 +342,26 @@ describe Delayed::Job do
 
   end
 
+  context "while running under the test environment" do
+    before do
+      Delayed::Job.synchrony = true
+    end
+
+    after do
+      Delayed::Job.synchrony = false
+    end
+
+    it "should not enqueue a job" do
+      expect do
+        Delayed::Job.enqueue SimpleJob.new
+      end.to_not change(Delayed::Job,:count)
+    end
+
+    it "should call the object's perform method immediately" do
+      simple = SimpleJob.new
+      simple.should_receive(:perform)
+      Delayed::Job.enqueue simple
+    end
+  end
+
 end
